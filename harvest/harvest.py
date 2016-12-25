@@ -1,10 +1,13 @@
 import json
+from copy import copy
+
 import requests
 from requests_oauthlib import OAuth2Session
 from urlparse import urlparse
 from base64   import b64encode as enc64
 
 HARVEST_STATUS_URL = 'http://www.harveststatus.com/api/v2/status.json'
+HARVEST_REFRESH_TOKEN_URL = 'https://api.harvestapp.com/oauth2/token'
 
 
 class HarvestError(Exception):
@@ -12,7 +15,7 @@ class HarvestError(Exception):
 
 
 class Harvest(object):
-    def __init__(self, uri, email=None, password=None, refresh_token=None, client_id=None, token=None, put_auth_in_header=True):
+    def __init__(self, uri, email=None, password=None, refresh_token=None, client_id=None, client_secret=None, token=None, put_auth_in_header=True, token_updater=None, context=None):
         self.__uri = uri.rstrip('/')
         parsed = urlparse(uri)
         if not (parsed.scheme and parsed.netloc):
@@ -38,7 +41,11 @@ class Harvest(object):
         elif client_id and token:
             self.__auth         = 'OAuth2'
             self.__client_id    = client_id
+            self.__client_secret= client_secret
             self.__token        = token
+
+        self.__token_updater = token_updater
+        self.__context = context
 
     @property
     def uri(self):
@@ -61,12 +68,27 @@ class Harvest(object):
         return self.__client_id
 
     @property
+    def client_secret(self):
+        return self.__client_secret
+
+    @property
     def token(self):
         return self.__token
 
     @property
     def status(self):
         return status()
+
+    @property
+    def token_updater(self):
+        return self.__token_updater
+
+    @property
+    def context(self):
+        return self.__context
+
+    def on_token_update(self, token):
+        self.token_updater(token, **self.context)
 
     ## Accounts
 
@@ -342,7 +364,18 @@ class Harvest(object):
             if 'Authorization' not in self.__headers:
                 kwargs['auth'] = (self.email, self.password)
         elif self.auth == 'OAuth2':
-            requestor = OAuth2Session(client_id=self.client_id, token=self.token)
+            token = copy(self.token)
+            token['expires_in'] = 0
+            requestor = OAuth2Session(
+                client_id=self.client_id,
+                token=token,
+                auto_refresh_url=HARVEST_REFRESH_TOKEN_URL,
+                auto_refresh_kwargs=dict(
+                    client_id=self.client_id,
+                    client_secret=self.client_secret
+                ),
+                token_updater=self.on_token_update
+            )
 
         try:
             resp = requestor.request(**kwargs)
