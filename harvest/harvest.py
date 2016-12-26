@@ -161,10 +161,15 @@ class Harvest(object):
     def get_person(self, person_id):
         return self._get('/people/{0}'.format(person_id))
 
-    def toggle_person_active(self, client_id):
-        return self._get('/people/{0}/toggle'.format(people_id))
+    def create_user(self, **kwargs):
+        # CREATE NEW USER
+        # client.create_user(user={"name":"jo"})
+        return self._post('/people/', data=kwargs)
 
-    def delete_person(self, client_id):
+    def toggle_person_active(self, person_id):
+        return self._get('/people/{0}/toggle'.format(person_id))
+
+    def delete_person(self, person_id):
         return self._delete('/people/{0}'.format(person_id))
 
     ## Projects
