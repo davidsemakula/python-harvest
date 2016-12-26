@@ -15,7 +15,7 @@ class HarvestError(Exception):
 
 
 class Harvest(object):
-    def __init__(self, uri, email=None, password=None, refresh_token=None, client_id=None, client_secret=None, token=None, put_auth_in_header=True, token_updater=None, context=None):
+    def __init__(self, uri, email=None, password=None, refresh_token=None, client_id=None, client_secret=None, token=None, put_auth_in_header=True, token_updater=None, context=None, return_response_obj=False):
         self.__uri = uri.rstrip('/')
         parsed = urlparse(uri)
         if not (parsed.scheme and parsed.netloc):
@@ -46,6 +46,7 @@ class Harvest(object):
 
         self.__token_updater = token_updater
         self.__context = context
+        self.__return_response_obj = return_response_obj
 
     @property
     def uri(self):
@@ -86,6 +87,10 @@ class Harvest(object):
     @property
     def context(self):
         return self.__context
+
+    @property
+    def return_response_obj(self):
+        return self.__return_response_obj
 
     def on_token_update(self, token):
         self.token_updater(token, **self.context)
@@ -384,7 +389,7 @@ class Harvest(object):
 
         try:
             resp = requestor.request(**kwargs)
-            if 'DELETE' not in method:
+            if 'DELETE' not in method and not self.return_response_obj:
                 try:
                     return resp.json()
                 except:
